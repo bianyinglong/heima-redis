@@ -10,6 +10,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,9 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     private RedisIdWorker redisIdWorker;
 
     @Resource
+    private RedissonClient redissonClient;
+
+    @Resource
     private StringRedisTemplate stringRedisTemplate;
 
     @Override
@@ -56,12 +61,53 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     }
 
 
+    @Transactional
+    public Result createVoucherOrder(Long voucherId) {
+        Long userId = UserHolder.getUser().getId();
+        // 利用redissonClient获取锁
+        RLock redisLock = redissonClient.getLock("lock:order" + userId);
+        boolean isLock = redisLock.tryLock();
+        if (!isLock) {
+            // 获取锁失败
+            return Result.fail("不允许重复下单");
+        }
+
+        try {
+            int count = query().eq("user_id", userId).eq("voucher_id", voucherId).count();
+            if (count > 0) {
+                return Result.fail("用户已经购买过一次该优惠券！");
+            }
+
+            boolean success = seckillVoucherService.update()
+                    .setSql("stock = stock - 1")
+                    .eq("voucher_id", voucherId)
+                    .gt("stock", 0)
+                    .update();// where id = ? and stock > 0 //stock > 0即为乐观锁解决库存超卖问题
+            if (!success) {
+                return Result.fail("库存不足!");
+            }
+
+            // 创建并保存订单
+            VoucherOrder voucherOrder = new VoucherOrder();
+            long orderId = redisIdWorker.nextId("order");
+            voucherOrder.setId(orderId);
+            voucherOrder.setUserId(userId);
+            voucherOrder.setVoucherId(voucherId);
+            save(voucherOrder);
+            // 返回订单id
+            return Result.ok(orderId);
+        } finally {
+            redisLock.unlock();
+        }
+    }
+
+
     /**
      * 手动实现 分布式锁+lua脚本解决并发重复下单问题
      * @param voucherId
      * @return: com.hmdp.dto.Result
      */
-    @Transactional
+/*    @Transactional
     public Result createVoucherOrder(Long voucherId) {
         Long userId = UserHolder.getUser().getId();
         SimpleRedisLock redisLock = new SimpleRedisLock("order" + userId, stringRedisTemplate);
@@ -98,7 +144,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
         } finally {
             redisLock.unlock();
         }
-    }
+    }*/
 
 
     /**
