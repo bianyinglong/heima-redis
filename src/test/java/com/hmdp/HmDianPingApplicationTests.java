@@ -1,6 +1,7 @@
 package com.hmdp;
 
 import com.hmdp.entity.Shop;
+import com.hmdp.service.IUserService;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.utils.CacheClient;
 import com.hmdp.utils.RedisConstants;
@@ -20,10 +21,13 @@ class HmDianPingApplicationTests {
     @Resource
     private ShopServiceImpl shopService;
 
+    @Resource
+    private IUserService userService;
     @Test
     void testSaveShopLoginExpire() throws InterruptedException {
-        Shop shop = shopService.getById(1L);
-        cacheClient.setWithLogicExpire(CACHE_SHOP_KEY + 1L, shop, 10L, TimeUnit.SECONDS);
+//        Shop shop = shopService.getById(1L);
+//        cacheClient.setWithLogicExpire(CACHE_SHOP_KEY + 1L, shop, 10L, TimeUnit.SECONDS);
+        System.out.println(userService);
     }
 
 }

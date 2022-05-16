@@ -17,7 +17,8 @@ spring:
         max-active: 10
         max-idle: 10
         min-idle: 1
-        time-between-eviction-runs: 10s
+        max-wait: -1
+        time-between-eviction-runs: 30s
   jackson:
     default-property-inclusion: non_null # JSON处理时忽略非空字段
 mybatis-plus:
