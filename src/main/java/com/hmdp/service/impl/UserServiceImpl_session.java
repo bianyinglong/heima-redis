@@ -60,6 +60,16 @@ public class UserServiceImpl_session extends ServiceImpl<UserMapper, User> imple
         return Result.ok();
     }
 
+    @Override
+    public Result sign() {
+        return null;
+    }
+
+    @Override
+    public Result signCount() {
+        return null;
+    }
+
 
     private User createUserWithPhone(String phone) {
         // 1.创建用户
